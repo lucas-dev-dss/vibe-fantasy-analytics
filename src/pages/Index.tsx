@@ -8,7 +8,7 @@ import { LoadingOverlay } from "@/components/fantasy/LoadingOverlay";
 import { useToast } from "@/hooks/use-toast";
 
 export interface AnalysisWeights {
-  contrarian: number;
+  rosterBalance: number; // 0 = fill roster holes, 100 = best available regardless
   risk: number;
 }
 
@@ -31,11 +31,13 @@ export interface Player {
   targetShare: number;
   snapShare: number;
   redZoneShares: number;
+  recommendationScore?: number;
+  analysisReason?: string;
 }
 
 const Index = () => {
   const [analysisWeights, setAnalysisWeights] = useState<AnalysisWeights>({
-    contrarian: 50,
+    rosterBalance: 50,
     risk: 50
   });
   
@@ -63,7 +65,7 @@ const Index = () => {
     setIsLoading(false);
     toast({
       title: "Analysis Complete!",
-      description: "Found new edge opportunities in your league",
+      description: "Smart recommendations based on your roster needs",
     });
   };
 
@@ -71,7 +73,7 @@ const Index = () => {
     setIsLoading(true);
     toast({
       title: "Analyzing...",
-      description: "Processing ESPN data and finding contrarian opportunities",
+      description: "Processing team data with enhanced math models",
     });
   };
 

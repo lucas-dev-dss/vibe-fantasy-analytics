@@ -141,15 +141,21 @@ export const PlayerCard = ({ player, rank, isWaiverWire, isTradeTarget, isMyRost
             )}
           </div>
 
-          {/* Recommendation Score */}
+          {/* Recommendation Score & Analysis */}
           {player.recommendationScore !== undefined && (
-            <div className="pt-2 border-t border-border/50">
+            <div className="pt-2 border-t border-border/50 space-y-2">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">Edge Score</span>
                 <span className="font-bold text-primary">
                   {player.recommendationScore}/100
                 </span>
               </div>
+              {player.analysisReason && (
+                <div className="text-xs text-muted-foreground bg-background/30 p-2 rounded border">
+                  <span className="font-medium text-foreground">Why: </span>
+                  {player.analysisReason}
+                </div>
+              )}
             </div>
           )}
         </div>

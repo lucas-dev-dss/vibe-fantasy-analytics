@@ -29,10 +29,10 @@ export const AnalysisStrategy = ({
     onModelChange(model);
     switch (model) {
       case 'aggressive':
-        onWeightsChange({ contrarian: 80, risk: 75 });
+        onWeightsChange({ rosterBalance: 80, risk: 75 }); // Ignore roster holes, chase upside
         break;
       case 'conservative':
-        onWeightsChange({ contrarian: 30, risk: 25 });
+        onWeightsChange({ rosterBalance: 20, risk: 25 }); // Fill holes, safe floor
         break;
       case 'custom':
         // Keep current weights
@@ -40,7 +40,7 @@ export const AnalysisStrategy = ({
     }
   };
 
-  const handleWeightChange = (type: 'contrarian' | 'risk', value: number[]) => {
+  const handleWeightChange = (type: 'rosterBalance' | 'risk', value: number[]) => {
     onWeightsChange({
       ...weights,
       [type]: value[0]
@@ -48,31 +48,31 @@ export const AnalysisStrategy = ({
   };
 
   const getStrategyDescription = () => {
-    const { contrarian, risk } = weights;
+    const { rosterBalance, risk } = weights;
     
-    if (contrarian > 70 && risk > 70) {
+    if (rosterBalance < 30 && risk < 30) {
       return { 
-        text: "🔥 Maximum Edge Hunter - High contrarian, high ceiling plays", 
-        color: "bg-gradient-to-r from-red-500 to-orange-500"
-      };
-    } else if (contrarian < 30 && risk < 30) {
-      return { 
-        text: "🛡️ Safe Floor Strategy - Consensus picks with guaranteed production", 
+        text: "🛡️ Roster Builder - Fill holes with safe, consistent players", 
         color: "bg-gradient-to-r from-green-500 to-emerald-500"
       };
-    } else if (contrarian > 60) {
+    } else if (rosterBalance > 70 && risk > 70) {
       return { 
-        text: "💎 Contrarian Value Hunter - Finding overlooked gems", 
+        text: "🔥 Best Player Available - Chase ceiling regardless of position", 
+        color: "bg-gradient-to-r from-red-500 to-orange-500"
+      };
+    } else if (rosterBalance < 40) {
+      return { 
+        text: "🎯 Position-First Strategy - Target roster weaknesses", 
         color: "bg-gradient-to-r from-blue-500 to-purple-500"
       };
     } else if (risk > 60) {
       return { 
-        text: "🚀 Boom/Bust Specialist - Chasing league-winning upside", 
+        text: "🚀 Upside Hunter - High-ceiling boom/bust players", 
         color: "bg-gradient-to-r from-purple-500 to-pink-500"
       };
     } else {
       return { 
-        text: "⚖️ Balanced Approach - Mix of safety and upside", 
+        text: "⚖️ Balanced Approach - Mix of positional need and upside", 
         color: "bg-gradient-to-r from-blue-400 to-cyan-400"
       };
     }
@@ -141,25 +141,25 @@ export const AnalysisStrategy = ({
           </p>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Contrarian Value */}
+            {/* Roster Balance Control */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <Label className="font-semibold">🎯 Contrarian Value Detection</Label>
+                <Label className="font-semibold">🎯 Roster Holes vs Best Available</Label>
                 <Badge variant="secondary" className="font-bold">
-                  {weights.contrarian}%
+                  {weights.rosterBalance}%
                 </Badge>
               </div>
               <div className="px-2">
                 <Slider
-                  value={[weights.contrarian]}
-                  onValueChange={(value) => handleWeightChange('contrarian', value)}
+                  value={[weights.rosterBalance]}
+                  onValueChange={(value) => handleWeightChange('rosterBalance', value)}
                   max={100}
                   step={5}
                   className="w-full"
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                0 = Follow consensus rankings | 100 = Maximum contrarian targeting
+                0 = Fill roster holes first | 100 = Always chase best available player
               </p>
             </div>
 

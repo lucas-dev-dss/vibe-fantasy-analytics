@@ -5,6 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { PlayerCard } from "@/components/fantasy/PlayerCard";
 import { Gem, ArrowUpDown, Users, BarChart3 } from "lucide-react";
 import type { LeagueData, AnalysisWeights, Player } from "@/pages/Index";
+import { 
+  calculateRecommendationScore, 
+  analyzeRosterStrength, 
+  generateRecommendationReason 
+} from "@/lib/mathModel";
 
 interface AnalysisResultsProps {
   leagueData: LeagueData;
@@ -14,28 +19,26 @@ interface AnalysisResultsProps {
 export const AnalysisResults = ({ leagueData, weights }: AnalysisResultsProps) => {
   const [activeTab, setActiveTab] = useState("waiver");
 
-  // Calculate recommendation scores based on weights
-  const calculateRecommendationScore = (player: Player) => {
-    const contrarianScore = (100 - player.ownership) * (weights.contrarian / 100);
-    const expertDiff = Math.max(0, player.expertRank - player.advancedRank);
-    const riskScore = (player.recentAvg / player.seasonAvg - 1) * 100 * (weights.risk / 100);
-    
-    return Math.round(contrarianScore + expertDiff + riskScore);
+  // Analyze user's roster for positional strengths/weaknesses  
+  const positionalAnalysis = analyzeRosterStrength(leagueData.myRoster);
+
+  // Enhanced recommendation scoring with team-specific logic
+  const calculatePlayerScore = (player: Player) => {
+    const score = calculateRecommendationScore(player, weights, positionalAnalysis);
+    const reason = generateRecommendationReason(player, score, positionalAnalysis, weights);
+    return { ...player, recommendationScore: score, analysisReason: reason };
   };
 
-  // Sort players by recommendation score
+  // Sort players by enhanced recommendation score
   const getSortedRecommendations = (players: Player[]) => {
     return players
-      .map(player => ({
-        ...player,
-        recommendationScore: calculateRecommendationScore(player)
-      }))
+      .map(calculatePlayerScore)
       .sort((a, b) => b.recommendationScore - a.recommendationScore);
   };
 
   const waiverRecommendations = getSortedRecommendations(leagueData.availablePlayers);
   const tradeTargets = waiverRecommendations.filter(p => p.ownership > 50);
-  const rosterAnalysis = getSortedRecommendations(leagueData.myRoster);
+  const rosterRecommendations = getSortedRecommendations(leagueData.myRoster);
 
   return (
     <Card className="glass-card shadow-card">
@@ -107,11 +110,11 @@ export const AnalysisResults = ({ leagueData, weights }: AnalysisResultsProps) =
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Your Current Roster Analysis</h3>
               <Badge className="bg-gradient-gold">
-                {rosterAnalysis.length} Players
+                {rosterRecommendations.length} Players
               </Badge>
             </div>
             <div className="space-y-4">
-              {rosterAnalysis.map((player, index) => (
+              {rosterRecommendations.map((player, index) => (
                 <PlayerCard 
                   key={`${player.name}-roster-${index}`} 
                   player={player} 
