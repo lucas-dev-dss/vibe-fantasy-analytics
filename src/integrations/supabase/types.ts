@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      analysis_sessions: {
+        Row: {
+          analysis_weights: Json
+          created_at: string
+          id: string
+          league_id: string
+          recommendations: Json
+          team_id: string
+        }
+        Insert: {
+          analysis_weights: Json
+          created_at?: string
+          id?: string
+          league_id: string
+          recommendations: Json
+          team_id: string
+        }
+        Update: {
+          analysis_weights?: Json
+          created_at?: string
+          id?: string
+          league_id?: string
+          recommendations?: Json
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_sessions_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_sessions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       LeagueDataTrial: {
         Row: {
           content: string | null
@@ -31,6 +73,185 @@ export type Database = {
           id?: number
         }
         Relationships: []
+      }
+      leagues: {
+        Row: {
+          created_at: string
+          espn_league_id: string
+          id: string
+          league_name: string
+          roster_settings: Json | null
+          scoring_type: string
+          season_year: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          espn_league_id: string
+          id?: string
+          league_name: string
+          roster_settings?: Json | null
+          scoring_type?: string
+          season_year: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          espn_league_id?: string
+          id?: string
+          league_name?: string
+          roster_settings?: Json | null
+          scoring_type?: string
+          season_year?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      player_projections: {
+        Row: {
+          ceiling_projection: number
+          confidence_interval: Json | null
+          created_at: string
+          floor_projection: number
+          id: string
+          league_id: string
+          player_id: string
+          projected_points: number
+          std_deviation: number
+          week_number: number
+        }
+        Insert: {
+          ceiling_projection: number
+          confidence_interval?: Json | null
+          created_at?: string
+          floor_projection: number
+          id?: string
+          league_id: string
+          player_id: string
+          projected_points: number
+          std_deviation: number
+          week_number: number
+        }
+        Update: {
+          ceiling_projection?: number
+          confidence_interval?: Json | null
+          created_at?: string
+          floor_projection?: number
+          id?: string
+          league_id?: string
+          player_id?: string
+          projected_points?: number
+          std_deviation?: number
+          week_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_projections_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_projections_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      players: {
+        Row: {
+          advanced_stats: Json | null
+          bye_week: number | null
+          created_at: string
+          espn_player_id: number
+          expert_rankings: Json | null
+          id: string
+          injury_status: string | null
+          nfl_team: string | null
+          ownership_pct: number | null
+          player_name: string
+          position: string
+          season_projections: Json | null
+          updated_at: string
+          weekly_projections: Json | null
+        }
+        Insert: {
+          advanced_stats?: Json | null
+          bye_week?: number | null
+          created_at?: string
+          espn_player_id: number
+          expert_rankings?: Json | null
+          id?: string
+          injury_status?: string | null
+          nfl_team?: string | null
+          ownership_pct?: number | null
+          player_name: string
+          position: string
+          season_projections?: Json | null
+          updated_at?: string
+          weekly_projections?: Json | null
+        }
+        Update: {
+          advanced_stats?: Json | null
+          bye_week?: number | null
+          created_at?: string
+          espn_player_id?: number
+          expert_rankings?: Json | null
+          id?: string
+          injury_status?: string | null
+          nfl_team?: string | null
+          ownership_pct?: number | null
+          player_name?: string
+          position?: string
+          season_projections?: Json | null
+          updated_at?: string
+          weekly_projections?: Json | null
+        }
+        Relationships: []
+      }
+      teams: {
+        Row: {
+          created_at: string
+          espn_team_id: number
+          id: string
+          league_id: string
+          owner_name: string | null
+          roster_data: Json | null
+          team_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          espn_team_id: number
+          id?: string
+          league_id: string
+          owner_name?: string | null
+          roster_data?: Json | null
+          team_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          espn_team_id?: number
+          id?: string
+          league_id?: string
+          owner_name?: string | null
+          roster_data?: Json | null
+          team_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teams_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
