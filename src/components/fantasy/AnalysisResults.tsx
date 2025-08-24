@@ -24,7 +24,7 @@ export const AnalysisResults = ({ leagueData, weights }: AnalysisResultsProps) =
 
   // Enhanced recommendation scoring with team-specific logic
   const calculatePlayerScore = (player: Player) => {
-    const score = calculateRecommendationScore(player, weights, positionalAnalysis);
+    const score = calculateRecommendationScore(player, weights, positionalAnalysis, leagueData.myRoster);
     const reason = generateRecommendationReason(player, score, positionalAnalysis, weights);
     return { ...player, recommendationScore: score, analysisReason: reason };
   };

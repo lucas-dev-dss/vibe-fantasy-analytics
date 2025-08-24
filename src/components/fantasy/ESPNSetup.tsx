@@ -4,7 +4,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, Rocket, Shield, Globe, Hash } from "lucide-react";
+import { AlertTriangle, Rocket, Shield, Globe, Hash, Database } from "lucide-react";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { FantasyService } from "@/services/fantasyService";
 import { generateDemoData } from "@/lib/demo-data";
 
 interface ESPNSetupProps {
@@ -19,6 +22,9 @@ interface ESPNSetupProps {
 }
 
 export const ESPNSetup = ({ config, onConfigChange, onLoadingStart, onAnalysisComplete }: ESPNSetupProps) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+
   const handleInputChange = (field: string, value: string) => {
     onConfigChange({
       ...config,
@@ -26,14 +32,94 @@ export const ESPNSetup = ({ config, onConfigChange, onLoadingStart, onAnalysisCo
     });
   };
 
+  // Enhanced ESPN data loading using Supabase backend
   const handleESPNLoad = async () => {
+    if (!config.leagueId.trim()) {
+      toast({
+        title: "Missing League ID", 
+        description: "Please enter your ESPN League ID",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsLoading(true);
     onLoadingStart();
-    
-    // Simulate API call delay
-    setTimeout(() => {
+
+    try {
+      // Step 1: Fetch ESPN data and store in Supabase
+      toast({
+        title: "Loading ESPN Data",
+        description: "Fetching league information from ESPN..."
+      });
+
+      const fetchResult = await FantasyService.fetchESPNLeague({
+        leagueId: config.leagueId,
+        teamId: config.teamId || undefined,
+        season: 2024,
+        espnCookies: config.espnCookies || undefined
+      });
+
+      toast({
+        title: "ESPN Data Loaded",
+        description: `Successfully loaded ${fetchResult.teams_count} teams and ${fetchResult.players_count} players`
+      });
+
+      // Step 2: Generate recommendations if team ID provided
+      if (config.teamId.trim()) {
+        toast({
+          title: "Analyzing Team",
+          description: "Generating personalized recommendations..."
+        });
+
+        const analysisResult = await FantasyService.generateRecommendations(
+          fetchResult.league_id,
+          config.teamId,
+          { rosterBalance: 50, risk: 50 } // Default weights
+        );
+
+        const transformedData = FantasyService.transformToLeagueData(
+          [], // players array
+          analysisResult.userRoster || [],
+          analysisResult.recommendations || []
+        );
+
+        onAnalysisComplete(transformedData);
+        
+        toast({
+          title: "Analysis Complete!",
+          description: `Generated ${analysisResult.recommendations?.length || 0} recommendations using real ESPN data`
+        });
+
+      } else {
+        // Show success but use demo data for display
+        toast({
+          title: "Data Loaded Successfully",
+          description: "Add your Team ID for personalized recommendations, or continue with demo data"
+        });
+        
+        const demoData = generateDemoData();
+        onAnalysisComplete(demoData);
+      }
+
+    } catch (error: any) {
+      console.error('ESPN loading error:', error);
+      
+      // Fallback to demo data with user-friendly error message
+      toast({
+        title: "Using Demo Data",
+        description: error.message?.includes('Failed to fetch') 
+          ? "ESPN API temporarily unavailable. Using demo data for testing."
+          : "Loading real data failed. Using demo data instead.",
+        variant: "destructive"
+      });
+
       const demoData = generateDemoData();
       onAnalysisComplete(demoData);
-    }, 2000);
+      
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

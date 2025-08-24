@@ -31,6 +31,7 @@ export interface Player {
   targetShare: number;
   snapShare: number;
   redZoneShares: number;
+  byeWeek?: number; // Added for bye week analysis
   recommendationScore?: number;
   analysisReason?: string;
 }
