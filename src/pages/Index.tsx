@@ -1,81 +1,49 @@
-import { useState } from "react";
-import { FantasyHeader } from "@/components/fantasy/FantasyHeader";
-import { ESPNSetup } from "@/components/fantasy/ESPNSetup";
-import { AnalysisStrategy } from "@/components/fantasy/AnalysisStrategy";
-import { DeploymentInstructions } from "@/components/fantasy/DeploymentInstructions";
-import { AnalysisResults } from "@/components/fantasy/AnalysisResults";
-import { LoadingOverlay } from "@/components/fantasy/LoadingOverlay";
-import { useToast } from "@/hooks/use-toast";
+import { useState } from 'react';
+import { FantasyHeader } from '@/components/fantasy/FantasyHeader';
+import { SleeperSetup } from '@/components/sleeper/SleeperSetup';
+import { AnalysisResults } from '@/components/fantasy/AnalysisResults';
+
+export interface Player {
+  sleeper_player_id: string;
+  player_name: string;
+  position: string;
+  nfl_team?: string;
+  score?: number;
+  reasoning?: string;
+}
 
 export interface AnalysisWeights {
-  rosterBalance: number; // 0 = fill roster holes, 100 = best available regardless
-  risk: number;
+  rosterBalance: number; // 0-100: 0=prioritize holes, 100=best available
+  risk: number; // 0-100: 0=safe floor, 100=high ceiling
 }
 
 export interface LeagueData {
   teams: any[];
-  availablePlayers: any[];
-  myRoster: any[];
-  allPlayers: any[];
-}
-
-export interface Player {
-  name: string;
-  position: string;
-  seasonAvg: number;
-  recentAvg: number;
-  weeklyScores: number[];
-  ownership: number;
-  expertRank: number;
-  advancedRank: number;
-  targetShare: number;
-  snapShare: number;
-  redZoneShares: number;
-  byeWeek?: number; // Added for bye week analysis
-  recommendationScore?: number;
-  analysisReason?: string;
+  availablePlayers: Player[];
+  myRoster: Player[];
+  allPlayers: Player[];
 }
 
 const Index = () => {
-  const [analysisWeights, setAnalysisWeights] = useState<AnalysisWeights>({
-    rosterBalance: 50,
-    risk: 50
-  });
-  
-  const [leagueData, setLeagueData] = useState<LeagueData>({
-    teams: [],
-    availablePlayers: [],
-    myRoster: [],
-    allPlayers: []
-  });
-  
-  const [currentModel, setCurrentModel] = useState<string>('custom');
-  const [showResults, setShowResults] = useState(false);
+  const [leagueData, setLeagueData] = useState<LeagueData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [espnConfig, setEspnConfig] = useState({
-    leagueId: '12345678',
-    teamId: '1',
-    espnCookies: ''
+  const [weights, setWeights] = useState<AnalysisWeights>({
+    rosterBalance: 50,
+    risk: 50,
   });
 
-  const { toast } = useToast();
+  const [config, setConfig] = useState({
+    leagueId: '',
+    rosterId: '',
+  });
 
-  const handleAnalysisComplete = (results: any) => {
-    setLeagueData(results);
-    setShowResults(true);
+  const handleAnalysisComplete = (data: LeagueData) => {
+    setLeagueData(data);
     setIsLoading(false);
-    toast({
-      title: "Analysis Complete!",
-      description: "Smart recommendations based on your roster needs",
-    });
   };
 
   const handleLoadingStart = () => {
     setIsLoading(true);
-    toast({
-      title: "Analyzing...",
-      description: "Processing team data with enhanced math models",
-    });
   };
 
   return (
@@ -84,34 +52,32 @@ const Index = () => {
         <FantasyHeader />
         
         <div className="space-y-6 lg:space-y-8">
-          <ESPNSetup 
-            config={espnConfig}
-            onConfigChange={setEspnConfig}
-            onLoadingStart={handleLoadingStart}
-            onAnalysisComplete={handleAnalysisComplete}
-          />
+          {!leagueData && !isLoading && (
+            <SleeperSetup
+              config={config}
+              onConfigChange={setConfig}
+              onLoadingStart={handleLoadingStart}
+              onAnalysisComplete={handleAnalysisComplete}
+            />
+          )}
+
+          {isLoading && (
+            <div className="flex items-center justify-center p-8">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading Sleeper data...</p>
+              </div>
+            </div>
+          )}
           
-          <AnalysisStrategy
-            weights={analysisWeights}
-            onWeightsChange={setAnalysisWeights}
-            currentModel={currentModel}
-            onModelChange={setCurrentModel}
-            onAnalysisComplete={handleAnalysisComplete}
-            onLoadingStart={handleLoadingStart}
-          />
-          
-          <DeploymentInstructions />
-          
-          {showResults && (
+          {leagueData && (
             <AnalysisResults 
               leagueData={leagueData}
-              weights={analysisWeights}
+              weights={weights}
             />
           )}
         </div>
       </div>
-      
-      {isLoading && <LoadingOverlay />}
     </div>
   );
 };
