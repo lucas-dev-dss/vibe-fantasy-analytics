@@ -49,6 +49,17 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Validate league ID format (should be 18-digit numeric string)
+    if (!/^\d{18}$/.test(leagueId)) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid league ID format. League ID must be exactly 18 digits.',
+          hint: 'Find your League ID in the Sleeper app URL when viewing your league.'
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log(`Fetching Sleeper league data for league ${leagueId}, season ${season}`);
 
     // Initialize Supabase client
@@ -60,7 +71,16 @@ Deno.serve(async (req) => {
     // Step 1: Fetch league information
     const leagueResponse = await fetch(`https://api.sleeper.app/v1/league/${leagueId}`);
     if (!leagueResponse.ok) {
-      throw new Error(`Failed to fetch league data: ${leagueResponse.status}`);
+      let errorMessage = `Failed to fetch league data: ${leagueResponse.status}`;
+      if (leagueResponse.status === 404) {
+        errorMessage = 'League not found. Please verify your League ID is correct and the league exists.';
+      } else if (leagueResponse.status === 429) {
+        errorMessage = 'Rate limited by Sleeper API. Please try again in a few minutes.';
+      }
+      return new Response(
+        JSON.stringify({ error: errorMessage }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     const leagueData: SleeperLeague = await leagueResponse.json();
 

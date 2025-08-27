@@ -101,13 +101,17 @@ export const SleeperSetup = ({ config, onConfigChange, onLoadingStart, onAnalysi
 
     } catch (error: any) {
       console.error('Sleeper loading error:', error);
+      let errorMessage = "Failed to fetch league data. Please check your League ID and try again.";
+      
+      if (error.message?.includes('non-2xx status code')) {
+        errorMessage = "Unable to connect to Sleeper API. Please verify your League ID is correct.";
+      }
       
       toast({
-        title: "Connection Error",
-        description: error.message || "Failed to connect to Sleeper API. Please check your League ID and try again.",
-        variant: "destructive"
+        title: "Error loading Sleeper data", 
+        description: errorMessage,
+        variant: "destructive",
       });
-      
     } finally {
       setIsLoading(false);
     }
@@ -131,26 +135,17 @@ export const SleeperSetup = ({ config, onConfigChange, onLoadingStart, onAnalysi
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="bg-muted/30 rounded-lg p-4 lg:p-6 border border-border/50">
-            <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              📋 How to Get Your IDs:
-            </h4>
-            <ol className="space-y-2 text-sm lg:text-base text-muted-foreground ml-4">
-              <li className="flex items-start gap-2">
-                <span className="font-medium text-primary min-w-[20px]">1.</span>
-                <span><strong>League ID:</strong> Find it in your Sleeper league URL</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="font-medium text-primary min-w-[20px]">2.</span>
-                <span><strong>Roster ID:</strong> Your position number in the league (1, 2, 3, etc.)</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="font-medium text-primary min-w-[20px]">3.</span>
-                <span><strong>Public Access:</strong> Works with all public Sleeper leagues</span>
-              </li>
-            </ol>
-          </div>
+            <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg mb-4">
+              <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">How to find your IDs:</h4>
+              <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
+                <strong>League ID:</strong> Visit your Sleeper league in a web browser. 
+                The League ID is the 18-digit number at the end of the URL (like 123456789012345678).
+              </p>
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                <strong>Roster ID:</strong> Usually 1-12 based on your team's position in the league. 
+                Try 1 if unsure, or check the league roster page.
+              </p>
+            </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-2">
@@ -160,12 +155,14 @@ export const SleeperSetup = ({ config, onConfigChange, onLoadingStart, onAnalysi
               </Label>
               <Input
                 id="leagueId"
-                placeholder="Example: 123456789123456789"
+                placeholder="123456789012345678 (18 digits)"
                 value={config.leagueId}
                 onChange={(e) => handleInputChange('leagueId', e.target.value)}
                 className="bg-background/50"
+                pattern="[0-9]{18}"
+                title="League ID must be exactly 18 digits"
               />
-              <p className="text-xs text-muted-foreground">Find this in your Sleeper league URL</p>
+              <p className="text-xs text-muted-foreground">18-digit number from your Sleeper league URL</p>
             </div>
 
             <div className="space-y-2">
