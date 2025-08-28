@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
     }
     const playersData: Record<string, any> = await playersResponse.json();
 
-    // Step 5: Store league data
+    // Step 5: Store league data with proper upsert handling
     const { data: leagueRecord, error: leagueError } = await supabase
       .from('sleeper_leagues')
       .upsert({
@@ -116,6 +116,8 @@ Deno.serve(async (req) => {
         total_rosters: leagueData.total_rosters,
         roster_positions: leagueData.roster_positions,
         scoring_settings: leagueData.scoring_settings
+      }, {
+        onConflict: 'sleeper_league_id'
       })
       .select()
       .single();
@@ -144,7 +146,9 @@ Deno.serve(async (req) => {
 
     const { data: rosterRecords, error: rostersError } = await supabase
       .from('sleeper_rosters')
-      .upsert(rosterInserts)
+      .upsert(rosterInserts, {
+        onConflict: 'league_id,roster_id'
+      })
       .select();
 
     if (rostersError) throw rostersError;
@@ -183,7 +187,9 @@ Deno.serve(async (req) => {
       if (playerInserts.length > 0) {
         const { data: playerRecords, error: playersError } = await supabase
           .from('sleeper_players')
-          .upsert(playerInserts)
+          .upsert(playerInserts, {
+            onConflict: 'sleeper_player_id'
+          })
           .select();
 
         if (playersError) throw playersError;
