@@ -36,39 +36,84 @@ Deno.serve(async (req) => {
     const { data: league, error: leagueError } = await supabase
       .from('sleeper_leagues')
       .select('*')
-      .eq('id', leagueId)
+      .eq('sleeper_league_id', leagueId)
       .single();
 
-    if (leagueError) throw leagueError;
+    if (leagueError || !league) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'League not found. Please load the league data first using the fetch-league function.' 
+        }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    const { data: roster, error: rosterError } = await supabase
+    // Get all rosters for this league
+    const { data: allRosters, error: allRostersError } = await supabase
       .from('sleeper_rosters')
       .select('*')
-      .eq('league_id', leagueId)
-      .eq('roster_id', rosterId)
-      .single();
+      .eq('league_id', league.id);
 
-    if (rosterError) throw rosterError;
+    if (allRostersError || !allRosters) {
+      return new Response(
+        JSON.stringify({ error: 'No roster data found for this league' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // Get roster players
+    // Find user's roster
+    const userRoster = allRosters.find(r => r.roster_id === parseInt(rosterId));
+    if (!userRoster) {
+      return new Response(
+        JSON.stringify({ 
+          error: `Roster ${rosterId} not found in league. Valid roster IDs: ${allRosters.map(r => r.roster_id).join(', ')}` 
+        }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if league is empty (no actual players drafted)
+    const hasActualPlayers = allRosters.some(roster => 
+      roster.player_ids && 
+      roster.player_ids.length > 0 && 
+      roster.player_ids.some((id: string) => id !== "0")
+    );
+
+    if (!hasActualPlayers) {
+      // Return empty league response with helpful message
+      return new Response(
+        JSON.stringify({
+          success: true,
+          userRoster: {
+            roster_id: userRoster.roster_id,
+            display_name: userRoster.display_name,
+            players: [],
+            isEmpty: true
+          },
+          recommendations: [],
+          message: 'This league appears to be empty (no draft has occurred yet). Recommendations will be available after players are drafted.',
+          isEmpty: true,
+          league: league
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { data: rosterPlayers, error: rosterPlayersError } = await supabase
       .from('sleeper_players')
       .select('*')
-      .in('sleeper_player_id', roster.player_ids || []);
+      .in('sleeper_player_id', userRoster.player_ids || []);
 
     if (rosterPlayersError) throw rosterPlayersError;
 
-    // Get available players (not on any roster in this league)
-    const { data: allRosters, error: allRostersError } = await supabase
-      .from('sleeper_rosters')
-      .select('player_ids')
-      .eq('league_id', leagueId);
-
-    if (allRostersError) throw allRostersError;
-
+    // Get available players (not on any roster in this league) 
     const ownedPlayerIds = new Set<string>();
     allRosters.forEach(r => {
-      (r.player_ids || []).forEach(id => ownedPlayerIds.add(id));
+      (r.player_ids || []).forEach((id: string) => {
+        if (id && id !== "0") {
+          ownedPlayerIds.add(id);
+        }
+      });
     });
 
     // Get available players by position
@@ -80,7 +125,7 @@ Deno.serve(async (req) => {
         .from('sleeper_players')
         .select('*')
         .eq('position', position)
-        .not('sleeper_player_id', 'in', `(${Array.from(ownedPlayerIds).join(',')})`)
+        .not('sleeper_player_id', 'in', `(${Array.from(ownedPlayerIds).join(',') || 'none'})`)
         .limit(50);
 
       if (availableError) continue;

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FantasyHeader } from '@/components/fantasy/FantasyHeader';
 import { SleeperSetup } from '@/components/sleeper/SleeperSetup';
 import { AnalysisResults } from '@/components/fantasy/AnalysisResults';
+import { EmptyLeagueMessage } from '@/components/sleeper/EmptyLeagueMessage';
 
 export interface Player {
   sleeper_player_id: string;
@@ -22,6 +23,8 @@ export interface LeagueData {
   availablePlayers: Player[];
   myRoster: Player[];
   allPlayers: Player[];
+  isEmpty?: boolean;
+  leagueName?: string;
 }
 
 const Index = () => {
@@ -70,10 +73,17 @@ const Index = () => {
             </div>
           )}
           
-          {leagueData && (
+          {leagueData && !leagueData.isEmpty && (
             <AnalysisResults 
               leagueData={leagueData}
               weights={weights}
+            />
+          )}
+
+          {leagueData && leagueData.isEmpty && (
+            <EmptyLeagueMessage 
+              leagueName={leagueData.leagueName}
+              rosterCount={12}
             />
           )}
         </div>

@@ -49,12 +49,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate league ID format (should be 18-digit numeric string)
-    if (!/^\d{18}$/.test(leagueId)) {
+    // Validate league ID format (should be 18-19 digit numeric string)
+    if (!/^\d{18,19}$/.test(leagueId)) {
       return new Response(
         JSON.stringify({ 
-          error: 'Invalid league ID format. League ID must be exactly 18 digits.',
-          hint: 'Find your League ID in the Sleeper app URL when viewing your league.'
+          error: 'Invalid league ID format. League ID must be 18-19 digits.',
+          hint: 'Find your League ID in the Sleeper app URL when viewing your league.',
+          provided: `You provided: ${leagueId} (${leagueId.length} digits)`
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -148,40 +149,54 @@ Deno.serve(async (req) => {
 
     if (rostersError) throw rostersError;
 
-    // Step 7: Store player data
+    // Step 7: Store player data (handle empty leagues)
     const allPlayerIds = new Set<string>();
     rostersData.forEach(roster => {
-      (roster.players || []).forEach(playerId => allPlayerIds.add(playerId));
+      (roster.players || []).forEach(playerId => {
+        // Filter out placeholder "0" values from empty leagues
+        if (playerId && playerId !== "0") {
+          allPlayerIds.add(playerId);
+        }
+      });
     });
 
-    const playerInserts = Array.from(allPlayerIds)
-      .map(playerId => {
-        const player = playersData[playerId];
-        if (!player) return null;
-        
-        return {
-          sleeper_player_id: playerId,
-          player_name: `${player.first_name || ''} ${player.last_name || ''}`.trim(),
-          position: player.position || 'UNK',
-          nfl_team: player.team || null,
-          age: player.age || null,
-          injury_status: player.injury_status || 'healthy',
-          fantasy_positions: player.fantasy_positions || [],
-          years_exp: player.years_exp || 0
-        };
-      })
-      .filter(Boolean);
+    let playerInserts = [];
+    if (allPlayerIds.size > 0) {
+      playerInserts = Array.from(allPlayerIds)
+        .map(playerId => {
+          const player = playersData[playerId];
+          if (!player) return null;
+          
+          return {
+            sleeper_player_id: playerId,
+            player_name: `${player.first_name || ''} ${player.last_name || ''}`.trim(),
+            position: player.position || 'UNK',
+            nfl_team: player.team || null,
+            age: player.age || null,
+            injury_status: player.injury_status || 'healthy',
+            fantasy_positions: player.fantasy_positions || [],
+            years_exp: player.years_exp || 0
+          };
+        })
+        .filter(Boolean);
 
-    if (playerInserts.length > 0) {
-      const { data: playerRecords, error: playersError } = await supabase
-        .from('sleeper_players')
-        .upsert(playerInserts)
-        .select();
+      if (playerInserts.length > 0) {
+        const { data: playerRecords, error: playersError } = await supabase
+          .from('sleeper_players')
+          .upsert(playerInserts)
+          .select();
 
-      if (playersError) throw playersError;
+        if (playersError) throw playersError;
+      }
     }
 
-    console.log(`Successfully stored ${rosterInserts.length} rosters and ${playerInserts.length} players`);
+    const actualPlayersCount = Array.isArray(playerInserts) ? playerInserts.length : 0;
+    console.log(`Successfully stored ${rosterInserts.length} rosters and ${actualPlayersCount} players`);
+    
+    // Handle empty leagues gracefully
+    if (actualPlayersCount === 0) {
+      console.log('Note: This appears to be an empty league (no players drafted yet)');
+    }
 
     return new Response(
       JSON.stringify({
@@ -190,7 +205,8 @@ Deno.serve(async (req) => {
         sleeper_league_id: leagueData.league_id,
         league_name: leagueData.name,
         rosters_count: rosterInserts.length,
-        players_count: playerInserts.length
+        players_count: actualPlayersCount,
+        is_empty_league: actualPlayersCount === 0
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

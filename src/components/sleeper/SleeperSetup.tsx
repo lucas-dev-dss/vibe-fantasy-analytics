@@ -7,6 +7,7 @@ import { Hash, Users, Database, Zap } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { SleeperService } from "@/services/sleeperService";
+import { validateSleeperConfig } from "@/lib/sleeperValidation";
 
 interface SleeperSetupProps {
   config: {
@@ -30,13 +31,27 @@ export const SleeperSetup = ({ config, onConfigChange, onLoadingStart, onAnalysi
   };
 
   const handleSleeperLoad = async () => {
-    if (!config.leagueId.trim()) {
+    // Validate configuration before making API calls
+    const validation = validateSleeperConfig({
+      leagueId: config.leagueId,
+      rosterId: config.rosterId
+    });
+
+    if (!validation.isValid) {
       toast({
-        title: "Missing League ID", 
-        description: "Please enter your Sleeper League ID",
+        title: "Configuration Error", 
+        description: validation.errors.join('. '),
         variant: "destructive"
       });
       return;
+    }
+
+    // Show warnings if any
+    if (validation.warnings.length > 0) {
+      toast({
+        title: "Note", 
+        description: validation.warnings.join('. '),
+      });
     }
 
     setIsLoading(true);
@@ -55,7 +70,7 @@ export const SleeperSetup = ({ config, onConfigChange, onLoadingStart, onAnalysi
 
       toast({
         title: "Sleeper Data Loaded",
-        description: `Successfully loaded ${fetchResult.rosters_count} rosters and ${fetchResult.players_count} players`
+        description: `Successfully loaded ${fetchResult.rosters_count} rosters${fetchResult.is_empty_league ? ' (empty league)' : ` and ${fetchResult.players_count} players`}`
       });
 
       // Step 2: Generate recommendations if roster ID provided
@@ -65,23 +80,60 @@ export const SleeperSetup = ({ config, onConfigChange, onLoadingStart, onAnalysi
           description: "Generating personalized recommendations..."
         });
 
-        const analysisResult = await SleeperService.generateRecommendations(
-          fetchResult.league_id,
-          config.rosterId,
-          { rosterBalance: 50, risk: 50 } // Default weights
-        );
+        try {
+          const analysisResult = await SleeperService.generateRecommendations(
+            fetchResult.league_id,
+            config.rosterId,
+            { rosterBalance: 50, risk: 50 } // Default weights
+          );
 
-        const transformedData = SleeperService.transformToLeagueData(
-          analysisResult.userRoster || [],
-          analysisResult.recommendations || []
-        );
+          const transformedData = SleeperService.transformToLeagueData(
+            analysisResult.userRoster || [],
+            analysisResult.recommendations || []
+          );
 
-        onAnalysisComplete(transformedData);
-        
-        toast({
-          title: "Analysis Complete!",
-          description: `Generated ${analysisResult.recommendations?.length || 0} recommendations using Sleeper data`
-        });
+          onAnalysisComplete(transformedData);
+          
+          toast({
+            title: "Analysis Complete!",
+            description: `Generated ${analysisResult.recommendations?.length || 0} recommendations using Sleeper data`
+          });
+        } catch (analysisError: any) {
+          // If analysis fails but league data loaded, show basic data
+          console.warn('Analysis failed, showing basic league data:', analysisError);
+          
+          // Check if it's an empty league response
+          const isEmptyLeague = analysisError?.isEmpty || 
+            (analysisError?.message && analysisError.message.includes('empty'));
+          
+          if (isEmptyLeague) {
+            onAnalysisComplete({
+              teams: [],
+              availablePlayers: [],
+              myRoster: [],
+              allPlayers: [],
+              isEmpty: true,
+              leagueName: fetchResult.league_name || 'Your League'
+            });
+            
+            toast({
+              title: "Empty League Detected", 
+              description: "This league hasn't had its draft yet. Come back after drafting!",
+            });
+          } else {
+            onAnalysisComplete({
+              teams: [],
+              availablePlayers: [],
+              myRoster: [],
+              allPlayers: []
+            });
+            
+            toast({
+              title: "League Loaded", 
+              description: "League loaded successfully (analysis unavailable)",
+            });
+          }
+        }
 
       } else {
         // Show success but need roster ID for recommendations
@@ -139,7 +191,7 @@ export const SleeperSetup = ({ config, onConfigChange, onLoadingStart, onAnalysi
               <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">How to find your IDs:</h4>
               <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
                 <strong>League ID:</strong> Visit your Sleeper league in a web browser. 
-                The League ID is the 18-digit number at the end of the URL (like 123456789012345678).
+                The League ID is the 18-19 digit number at the end of the URL (like 1266575469566758912).
               </p>
               <p className="text-sm text-blue-800 dark:text-blue-200">
                 <strong>Roster ID:</strong> Usually 1-12 based on your team's position in the league. 
@@ -155,14 +207,14 @@ export const SleeperSetup = ({ config, onConfigChange, onLoadingStart, onAnalysi
               </Label>
               <Input
                 id="leagueId"
-                placeholder="123456789012345678 (18 digits)"
+                placeholder="1266575469566758912 (18-19 digits)"
                 value={config.leagueId}
                 onChange={(e) => handleInputChange('leagueId', e.target.value)}
                 className="bg-background/50"
-                pattern="[0-9]{18}"
-                title="League ID must be exactly 18 digits"
+                pattern="[0-9]{18,19}"
+                title="League ID must be 18-19 digits"
               />
-              <p className="text-xs text-muted-foreground">18-digit number from your Sleeper league URL</p>
+              <p className="text-xs text-muted-foreground">18-19 digit number from your Sleeper league URL</p>
             </div>
 
             <div className="space-y-2">
